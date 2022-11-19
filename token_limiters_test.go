@@ -31,6 +31,7 @@ func TestTokenLimiters(t *testing.T) {
 		limiters.NewTokenLimiterChannelEmpty(maxTokens),
 		limiters.NewTokenLimiterChanelFull(maxTokens),
 		limiters.NewTokenLimiterCounterMutex(maxTokens),
+		limiters.NewTokenLimiterFromPoolLimiter(maxTokens),
 	} {
 		t.Run(getTypeName(l), func(t *testing.T) {
 			t.Run("Acquire", func(t *testing.T) {
@@ -128,6 +129,7 @@ func BenchmarkTokenLimiters(b *testing.B) {
 		limiters.NewTokenLimiterChannelEmpty(maxTokens),
 		limiters.NewTokenLimiterChanelFull(maxTokens),
 		limiters.NewTokenLimiterCounterMutex(maxTokens),
+		limiters.NewTokenLimiterFromPoolLimiter(maxTokens),
 	} {
 		b.Run(getTypeName(l), func(b *testing.B) {
 			b.Run("acquire one", func(b *testing.B) {
