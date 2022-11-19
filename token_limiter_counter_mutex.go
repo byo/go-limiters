@@ -16,7 +16,7 @@ func NewTokenLimiterCounterMutex(maxTokens int) TokenLimiter {
 	return ret
 }
 
-func (c *tokenLimiterCounterMutex) Acquire() ReleaseFunc {
+func (c *tokenLimiterCounterMutex) Acquire() {
 	c.m.Lock()
 	defer c.m.Unlock()
 
@@ -24,31 +24,25 @@ func (c *tokenLimiterCounterMutex) Acquire() ReleaseFunc {
 		c.c.Wait()
 	}
 	c.cnt--
-
-	return func() {
-		c.m.Lock()
-		defer c.m.Unlock()
-
-		c.cnt++
-		c.c.Signal()
-	}
 }
 
-func (c *tokenLimiterCounterMutex) AcquireNoWait() (ReleaseFunc, error) {
+func (c *tokenLimiterCounterMutex) AcquireNoWait() error {
 	c.m.Lock()
 	defer c.m.Unlock()
 
 	for c.cnt <= 0 {
-		return nil, ErrResourceExhausted
+		return ErrResourceExhausted
 	}
 
 	c.cnt--
 
-	return func() {
-		c.m.Lock()
-		defer c.m.Unlock()
+	return nil
+}
 
-		c.cnt++
-		c.c.Signal()
-	}, nil
+func (c *tokenLimiterCounterMutex) Release() {
+	c.m.Lock()
+	defer c.m.Unlock()
+
+	c.cnt++
+	c.c.Signal()
 }

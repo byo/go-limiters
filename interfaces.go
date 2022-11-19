@@ -9,14 +9,13 @@ var (
 	ErrResourceExhausted = errors.New("resource exhausted")
 )
 
-type ReleaseFunc func()
-
 type TokenLimiter interface {
-	Acquire() ReleaseFunc
-	AcquireNoWait() (ReleaseFunc, error)
+	Acquire()
+	AcquireNoWait() error
+	Release()
 }
 
 type CancellableTokenLimiter interface {
 	TokenLimiter
-	AcquireCtx(ctx context.Context) (ReleaseFunc, error)
+	AcquireCtx(ctx context.Context) error
 }

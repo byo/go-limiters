@@ -12,28 +12,31 @@ func NewTokenLimiterChannelEmpty(maxTokens int) CancellableTokenLimiter {
 	}
 }
 
-func (c *tokenLimiterChannelEmpty) Acquire() ReleaseFunc {
+func (c *tokenLimiterChannelEmpty) Acquire() {
 	c.ch <- struct{}{}
-	return func() { <-c.ch }
 }
 
-func (c *tokenLimiterChannelEmpty) AcquireNoWait() (ReleaseFunc, error) {
+func (c *tokenLimiterChannelEmpty) AcquireNoWait() error {
 	select {
 	case c.ch <- struct{}{}:
-		return func() { <-c.ch }, nil
+		return nil
 	default:
-		return nil, ErrResourceExhausted
+		return ErrResourceExhausted
 	}
 }
 
-func (c *tokenLimiterChannelEmpty) AcquireCtx(ctx context.Context) (ReleaseFunc, error) {
+func (c *tokenLimiterChannelEmpty) AcquireCtx(ctx context.Context) error {
 	if ctx.Err() == nil {
 		select {
 		case c.ch <- struct{}{}:
-			return func() { <-c.ch }, nil
+			return nil
 		case <-ctx.Done():
 			break
 		}
 	}
-	return nil, ctx.Err()
+	return ctx.Err()
+}
+
+func (c *tokenLimiterChannelEmpty) Release() {
+	<-c.ch
 }

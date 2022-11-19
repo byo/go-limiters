@@ -45,7 +45,8 @@ func TestTokenLimiters(t *testing.T) {
 					go func() {
 						defer wg.Done()
 
-						defer l.Acquire()()
+						l.Acquire()
+						defer l.Release()
 
 						newVal := atomic.AddInt64(&currentCount, 1)
 						oldMax := atomic.LoadInt64(&maxEverCount)
@@ -71,15 +72,14 @@ func TestTokenLimiters(t *testing.T) {
 
 				// Fill up all slots
 				for i := 0; i < maxTokens; i++ {
-					c, err := l.AcquireNoWait()
+					err := l.AcquireNoWait()
 					assert.NoError(t, err)
-					defer c()
+					defer l.Release()
 				}
 
 				// One more slot must instantly error out
-				releaseFunc, err := l.AcquireNoWait()
+				err := l.AcquireNoWait()
 				require.ErrorIs(t, err, limiters.ErrResourceExhausted)
-				require.Nil(t, releaseFunc)
 			})
 
 			t.Run("AcquireCtx", func(t *testing.T) {
@@ -90,18 +90,17 @@ func TestTokenLimiters(t *testing.T) {
 
 						// Fill up all slots
 						for i := 0; i < maxTokens; i++ {
-							c, err := l.AcquireCtx(ctx)
+							err := l.AcquireCtx(ctx)
 							assert.NoError(t, err)
-							defer c()
+							defer l.Release()
 						}
 
 						// One more slot must fail once the context times out
 						ctxTimeout, cancelFunc := context.WithTimeout(ctx, time.Millisecond*20)
 						defer cancelFunc()
 
-						c, err := l.AcquireCtx(ctxTimeout)
+						err := l.AcquireCtx(ctxTimeout)
 						require.ErrorIs(t, err, context.DeadlineExceeded)
-						require.Nil(t, c)
 					})
 
 					t.Run("WithCancel", func(t *testing.T) {
@@ -110,10 +109,9 @@ func TestTokenLimiters(t *testing.T) {
 						cancelFunc()
 
 						for i := 0; i < maxTokens; i++ {
-							c, err := l.AcquireCtx(ctx)
+							err := l.AcquireCtx(ctx)
 							// We must always fail, even if there are some slots left
 							require.ErrorIs(t, err, context.Canceled)
-							require.Nil(t, c)
 						}
 					})
 				}
@@ -134,17 +132,17 @@ func BenchmarkTokenLimiters(b *testing.B) {
 		b.Run(getTypeName(l), func(b *testing.B) {
 			b.Run("acquire one", func(b *testing.B) {
 				for i := 0; i < b.N; i++ {
-					l.Acquire()()
+					l.Acquire()
+					l.Release()
 				}
 			})
 			b.Run("acquire all", func(b *testing.B) {
-				rf := make([]limiters.ReleaseFunc, maxTokens)
 				for i := 0; i < b.N; i++ {
 					for i := 0; i < maxTokens; i++ {
-						rf[i] = l.Acquire()
+						l.Acquire()
 					}
 					for i := maxTokens - 1; i >= 0; i-- {
-						rf[i]()
+						l.Release()
 					}
 				}
 			})
